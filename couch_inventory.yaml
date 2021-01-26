@@ -1,0 +1,5 @@
+#couch_inventory.yml
+
+plugin: couch_inventory
+devices_url: 'https://couchdb-prd.avs.byu.edu/devices/_all_docs' 
+rooms_url: 'https://couchdb-prd.avs.byu.edu/rooms/'
