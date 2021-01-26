@@ -27,20 +27,66 @@ from ansible.plugins.inventory import BaseInventoryPlugin
 from ansible.errors import AnsibleError, AnsibleParserError
 
 class InventoryModule(BaseInventoryPlugin):
-  Name = 'couch_inventory'
+    Name = 'couch_inventory'
+    
+    def verify_file(self, path):
+        '''Return true/false if this is possibly a valid file for this plugin to consume'''
+        super(InventoryModule, self).verify_file(path)
+         return path.endswith(('couch_inventory.yaml', 'couch_inventory.yml'))
 
-  def verify_file(self, path):
-    '''Return true/false if this is possibly a valid file for this plugin to consume'''
-    super(InventoryModule, self).verify_file(path)
-    return path.endswith(('couch_inventory.yaml', 'couch_inventory.yml'))
+    def couch_inventory(self, devices, rooms):
+        try: 
+            response = urlopen('https://couchdb-prd.avs.byu.edu/devices/_all_docs')
+            resp = response.read()
+            resp_json = json.loads(resp)
+        except urllib.error.HTTPError:
+            print("Cannot get information from database")
+            return -1
+        for row in resp_json["rows"]:
+            lists.append(row['id'])
 
-  def parse(self, inventory, loader, path, cache):
-    '''Return dynamic inventory from source'''
-    super(InventoryModule, self).parse(inventory, loader, path)
-    self._read_config_data(path)
 
-    root_group_name = self.inventory.add_group('root_group')
+        for l in lists:
+            if re.search(r'-CP[0-9]+\b', l):
+                CP.append(l)
+                device_Designation(l)
+            elif re.search(r'-SP[0-9]+\b', l):
+                SP.append(l)
+                device_Designation(l)
+            elif re.search(r'-STB[0-9]+\b', l):
+                STB.append(l)
+                device_Designation(l)
+            elif re.search(r'-MSD[0-9]+\b', l):
+                MSD.append(l)
+                device_Designation(l)
+            elif re.search(r'-DS[0-9]+\b', l):
+                DS.append(l)
+                device_Designation(l)
+
+        d = {"all": [{"Control Processors":CP},{"Scheduling Panels":SP},{"Set-top Boxes":STB},{"Portable Set-top Boxes":MSD},{"Divider Sensors":DS},{"Production":production},{"Stage":stage},{"No Designation":no_designation},{"Buildings":buildings}]}
+
+        with open('data.txt', 'w') as outfile:
+            json.dump(d, outfile)
+
+    def parse(self, inventory, loader, path, cache):
+        '''Return dynamic inventory from source'''
+        super(InventoryModule, self).parse(inventory, loader, path)
+    
+        # Read the inventory YAML file
+        self._read_config_data(path)
+    
+    try:
+        self.plugin = self.get_option('plugin')
+        self.dev_url = self.get_option('devices_url')
+        self.rm_url = self.get_option('rooms_url')
+    except Exception as e:
+        raise AnsibleParserError('All correction options required: {}'.format(e))
+
+    self.couch_populate()
 
 
+    #root_group_name = self.inventoiry.add_group('root_group')
+
+    
 
 
