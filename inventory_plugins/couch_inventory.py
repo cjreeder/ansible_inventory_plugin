@@ -32,11 +32,42 @@ class InventoryModule(BaseInventoryPlugin):
     def verify_file(self, path):
         '''Return true/false if this is possibly a valid file for this plugin to consume'''
         super(InventoryModule, self).verify_file(path)
-         return path.endswith(('couch_inventory.yaml', 'couch_inventory.yml'))
+        return path.endswith(('couch_inventory.yaml', 'couch_inventory.yml'))
 
+    def device_Designation(l, rooms_location):
+        hostname = l  
+        print(hostname)
+        host_name_split=hostname.split("-")
+        building_name = host_name_split[0]
+        room_number = host_name_split[1]
+        room = host_name_split[0] + '-' + host_name_split[1]
+        if buildings[building_name]:
+            buildings[building_name].append(hostname)
+        else:
+            buildings[building_name] = [hostname]
+
+        try:
+            room_response = urlopen(rooms_location+room)
+            rr=room_response.read()
+            rr_json = json.loads(rr)
+            desig = rr_json['designation']
+        except urllib.error.HTTPError:
+            print("Cannot Get designation")
+            desig = 'no_designation'
+
+        if desig=='production':
+            print(desig)
+            production.append(hostname)
+        elif desig=='stage':
+            stage.append(hostname)
+            print(desig)
+        else:
+            no_designation.append(hostname)
+            print(desig)
+    
     def couch_inventory(self, devices, rooms):
         try: 
-            response = urlopen('https://couchdb-prd.avs.byu.edu/devices/_all_docs')
+            response = urlopen(devices)
             resp = response.read()
             resp_json = json.loads(resp)
         except urllib.error.HTTPError:
@@ -64,9 +95,9 @@ class InventoryModule(BaseInventoryPlugin):
                 device_Designation(l)
 
         d = {"all": [{"Control Processors":CP},{"Scheduling Panels":SP},{"Set-top Boxes":STB},{"Portable Set-top Boxes":MSD},{"Divider Sensors":DS},{"Production":production},{"Stage":stage},{"No Designation":no_designation},{"Buildings":buildings}]}
-
-        with open('data.txt', 'w') as outfile:
-            json.dump(d, outfile)
+        return d 
+        #with open('data.txt', 'w') as outfile:
+        #    json.dump(d, outfile)
 
     def parse(self, inventory, loader, path, cache):
         '''Return dynamic inventory from source'''
