@@ -67,7 +67,7 @@ class InventoryModule(BaseInventoryPlugin):
         self.inventory.add_host(host=hostname, group=building_name)
         
         try:
-            res = next((item for item in room_resp['docs'] if item['_id'] == room), None)
+            res = next((item for item in rooms_resp['docs'] if item['_id'] == room), None)
             desig = res['designation']
         except TypeError:
             desig = 'no_designation'
@@ -85,6 +85,7 @@ class InventoryModule(BaseInventoryPlugin):
         self.inventory.add_group('STB')
         self.inventory.add_group('MSD')
         self.inventory.add_group('DS')
+        self.inventory.add_group('TC')
         self.inventory.add_group('production')
         self.inventory.add_group('stage')
         self.inventory.add_group('no_designation')
@@ -102,7 +103,7 @@ class InventoryModule(BaseInventoryPlugin):
         req.add_header('Content-Type', 'application/json')
         f = urllib.request.urlopen(req)
         resp = f.read()
-        room_resp = json.loads(resp)
+        rooms_resp = json.loads(resp)
         
         #Get the Devices from the couch database
         try: 
