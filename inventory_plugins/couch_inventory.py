@@ -37,6 +37,7 @@ SP = []
 STB = []
 MSD = []
 DS = []
+TC = []
 production = []
 stage = []
 no_designation = []
@@ -54,7 +55,7 @@ class InventoryModule(BaseInventoryPlugin):
                 valid = True
         return valid
 
-    def device_Designation(self, l, rooms_location):
+    def device_Designation(self, l, rooms_resp):
         hostname = l  
         host_name_split=hostname.split("-")
         building_name = host_name_split[0]
@@ -66,21 +67,16 @@ class InventoryModule(BaseInventoryPlugin):
         self.inventory.add_host(host=hostname, group=building_name)
         
         try:
-            room_response = urlopen(rooms_location+room)
-            rr=room_response.read()
-            rr_json = json.loads(rr)
-            desig = rr_json['designation']
-        except urllib.error.HTTPError:
+            res = next((item for item in room_resp['docs'] if item['_id'] == room), None)
+            desig = res['designation']
+        except TypeError:
             desig = 'no_designation'
         
         if desig=='production':
-            #production.append(hostname)
             self.inventory.add_host(host=hostname, group=desig)
         elif desig=='stage':
-            #stage.append(hostname)
             self.inventory.add_host(host=hostname, group=desig)
         else:
-            #no_designation.append(hostname)
             self.inventory.add_host(host=hostname, group="no_designation")
     
     def couch_inventory(self, devices_url, rooms_url):
@@ -92,9 +88,25 @@ class InventoryModule(BaseInventoryPlugin):
         self.inventory.add_group('production')
         self.inventory.add_group('stage')
         self.inventory.add_group('no_designation')
-
+        
+        #Get the rooms from the couch database
+        body = {
+           "selector": {
+                "_id": {"$regex": "[A-Z]"}
+            },
+            "fields": ["_id","designation"],
+            "limit": 2000
+        }
+        body = bytes((json.dumps(body)), 'utf8')
+        req = urllib.request.Request(url=rooms_url,data=body,method='POST')
+        req.add_header('Content-Type', 'application/json')
+        f = urllib.request.urlopen(req)
+        resp = f.read()
+        room_resp = json.loads(resp)
+        
+        #Get the Devices from the couch database
         try: 
-            response = urlopen(self.devices_url)
+            response = urllib.request.urlopen(self.devices_url)
             resp = response.read()
             resp_json = json.loads(resp)
         except urllib.error.HTTPError:
@@ -106,20 +118,23 @@ class InventoryModule(BaseInventoryPlugin):
         
         for l in lists:
             if re.search(r'-CP[0-9]+\b', l):
-                self.device_Designation(l, rooms_url)
+                self.device_Designation(l, rooms_resp)
                 self.inventory.add_host(host=l, group='CP')
             elif re.search(r'-SP[0-9]+\b', l):
-                self.device_Designation(l, rooms_url)
+                self.device_Designation(l, rooms_resp)
                 self.inventory.add_host(host=l, group='SP')
             elif re.search(r'-STB[0-9]+\b', l):
-                self.device_Designation(l, rooms_url)
+                self.device_Designation(l, rooms_resp)
                 self.inventory.add_host(host=l, group='STB')
             elif re.search(r'-MSD[0-9]+\b', l):
-                self.device_Designation(l, rooms_url)
+                self.device_Designation(l, rooms_resp)
                 self.inventory.add_host(host=l, group='MSD')
             elif re.search(r'-DS[0-9]+\b', l):
-                self.device_Designation(l, rooms_url)
+                self.device_Designation(l, rooms_resp)
                 self.inventory.add_host(host=l, group='DS')
+            elif re.search(r'-TC[0-9]+\b', l):
+                self.device_Designation(l, rooms_resp)
+                self.inventory.add_host(host=l, group='TC')
        
     def parse(self, inventory, loader, path, cache):
         '''Return dynamic inventory from source'''
